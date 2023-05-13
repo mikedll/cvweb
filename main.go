@@ -158,11 +158,6 @@ func main() {
 			}
 		}
 	}
-
-	origin := calcOrigin(good, hayStackKps, needleKps, needleImg)
-	if origin != nil {
-		fmt.Printf("Origin in training image: (%d, %d, %d, %d)\n", (*origin)[0], (*origin)[1], (*origin)[2], (*origin)[3])
-	}		
 	
 	out := matchRender(needleImg, needleKps, hayStackImg, hayStackKps, good)
 	defer out.Close()
@@ -170,8 +165,13 @@ func main() {
 	forWindow := hayStackImg.Clone()
 	defer forWindow.Close()
 
-	blue := color.RGBA{0, 0, 255, 0}
-	gocv.Rectangle(&forWindow, image.Rect((*origin)[0], (*origin)[1], (*origin)[0] + (*origin)[2], (*origin)[1] + (*origin)[3]), blue, 2)
+
+	origin := calcOrigin(good, hayStackKps, needleKps, needleImg)
+	if origin != nil {
+		fmt.Printf("Origin in training image: (%d, %d, %d, %d)\n", (*origin)[0], (*origin)[1], (*origin)[2], (*origin)[3])
+		blue := color.RGBA{0, 0, 255, 0}
+		gocv.Rectangle(&forWindow, image.Rect((*origin)[0], (*origin)[1], (*origin)[0] + (*origin)[2], (*origin)[1] + (*origin)[3]), blue, 2)		
+	}
 	
 	window := gocv.NewWindow("Needle in Haystack")
 	for {
