@@ -1,17 +1,6 @@
-// What it does:
-//
-// This example draws two examples, an atom and a rook, based on:
-// https://docs.opencv.org/2.4/doc/tutorials/core/basic_geometric_drawing/basic_geometric_drawing.html.
-//
-// How to run:
-//
-// 		go run ./cmd/basic-drawing/main.go
-//
-
-package main
+package pkg
 
 import (
-	"os"
 	"fmt"
 	"math"
 	"image"
@@ -19,7 +8,6 @@ import (
 	"gocv.io/x/gocv"
 )
 
-var w = 400
 const originEpsilon = 1
 const matchDistanceFactor = 0.70
 const expectedOriginRatio = 0.1
@@ -82,7 +70,9 @@ func calcOrigin(good []gocv.DMatch, hayStackKps []gocv.KeyPoint, needleKps []goc
 }
 
 //
-// Caller should call close on the returned Mat.
+// Returns a gocv.Mat
+// 
+// Caller should call Close on it.
 // 
 func matchRender(needleImg gocv.Mat, needleKps []gocv.KeyPoint, hayStackImg gocv.Mat, hayStackKps []gocv.KeyPoint,
 	good []gocv.DMatch) gocv.Mat {
@@ -110,18 +100,18 @@ func matchRender(needleImg gocv.Mat, needleKps []gocv.KeyPoint, hayStackImg gocv
 	return out
 }
 
-func main() {
-	if len(os.Args) != 3 {
-		fmt.Printf("Usage: ./cli haystack.png needle.png\n")
-		return
-	}
+//
+// Returns a gocv.Mat that caller must call Close on.
+//
+// The Mat is an image of the haystack image, with the needle, if found, drawn on top of it.
+//
+func FindNeedle(haystackFile, needleFile string) gocv.Mat {	
+	hayStackImg := gocv.IMRead(haystackFile, gocv.IMReadColor)
+	defer hayStackImg.Close()
 
-	needleImg := gocv.IMRead(os.Args[2], gocv.IMReadColor)
+	needleImg := gocv.IMRead(needleFile, gocv.IMReadColor)
 	defer needleImg.Close()
 
-	hayStackImg := gocv.IMRead(os.Args[1], gocv.IMReadColor)
-	defer hayStackImg.Close()
-	
 	sift := gocv.NewSIFT()
 	defer sift.Close()
 
@@ -158,13 +148,12 @@ func main() {
 			}
 		}
 	}
-	
+
+	// This isn't being used at the moment
 	out := matchRender(needleImg, needleKps, hayStackImg, hayStackKps, good)
 	defer out.Close()
 
-	forWindow := hayStackImg.Clone()
-	defer forWindow.Close()
-
+	forWindow := hayStackImg.Clone()	
 
 	origin := calcOrigin(good, hayStackKps, needleKps, needleImg)
 	if origin != nil {
@@ -172,16 +161,6 @@ func main() {
 		blue := color.RGBA{0, 0, 255, 0}
 		gocv.Rectangle(&forWindow, image.Rect((*origin)[0], (*origin)[1], (*origin)[0] + (*origin)[2], (*origin)[1] + (*origin)[3]), blue, 2)		
 	}
-	
-	window := gocv.NewWindow("Needle in Haystack")
-	for {
-		if forWindow.Empty() {
-			fmt.Printf("Empty mat, exiting\n")
-			break
-		}
 
-		window.ResizeWindow(forWindow.Cols(), forWindow.Rows())
-		window.IMShow(forWindow)
-		window.WaitKey(1)
-	}
+	return forWindow
 }
