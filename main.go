@@ -39,18 +39,20 @@ func main() {
 	needleKp, needleDesc := sift.DetectAndCompute(needleImg, gocv.NewMat())
 	hayStackKp, hayStackDesc := sift.DetectAndCompute(hayStackImg, gocv.NewMat())
 
+	fmt.Printf("Haystack rows=%d, cols=%d\n", hayStackImg.Rows(), hayStackImg.Cols())
+	
 	flannMatcher := gocv.NewFlannBasedMatcher()
 	defer flannMatcher.Close()
 
 	dontUnderstand := 2
-	matches := flannMatcher.KnnMatch(hayStackDesc, needleDesc, dontUnderstand)
-	fmt.Printf("Here we go: %p\n", matches)
+	matches := flannMatcher.KnnMatch(needleDesc, hayStackDesc, dontUnderstand)
+	fmt.Printf("Here we go: %p, number of matches is %d\n", matches, len(matches))
 
 	var good []gocv.DMatch
-	for i, m := range matches {
+	for _, m := range matches {
 		if len(m) > 1 {
-			if m[0].Distance < 0.75 * m[1].Distance {
-				fmt.Printf("Appending one for %d\n", i)
+			if m[0].Distance < 0.70 * m[1].Distance {
+				// fmt.Printf("Appending one for %d\n", i)
 				good = append(good, m[0])
 			}
 		}
@@ -76,7 +78,7 @@ func main() {
 	}
 	
 	mask := make([]byte, 0)
-	gocv.DrawMatches(hayStackImg, hayStackKp, needleImg, needleKp, good, &out, c1, c2, mask, gocv.DrawDefault)
+	gocv.DrawMatches(needleImg, needleKp, hayStackImg, hayStackKp, good, &out, c1, c2, mask, gocv.DrawDefault)
 	
 	forWindow := out.Clone()
 	defer forWindow.Close()
