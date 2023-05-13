@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"io"
 	"log"
 	"pkg"
+	"mime/multipart"
 	"github.com/qor/render"
 	"html/template"
 	"strings"
@@ -39,9 +41,53 @@ func defaultCtx() map[string]interface{} {
 	return ctx
 }
 
+func writeError(w http.ResponseWriter, msg string, errorNum int) {
+	http.Error(w, msg, errorNum)
+}
+
+func writeInteralServerError(w http.ResponseWriter, msg string) {
+	writeError(w, msg, http.StatusInternalServerError)
+}
+
 func root(w http.ResponseWriter, req *http.Request) {
 	ctx := defaultCtx()
 	renderer.Execute("index", ctx, req, w)		
+}
+
+func storeFile(param string, req *http.Request) error {
+	var err error
+	var file multipart.File
+	var header *multipart.FileHeader
+	file, header, err = req.FormFile(param)
+	if err != nil {
+		return err
+	}
+
+	var fileBytes []byte
+	fileBytes, err = io.ReadAll(file)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile("./file_storage/" + header.Filename, fileBytes, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func run(w http.ResponseWriter, req *http.Request) {
+	ctx := defaultCtx()
+	req.ParseMultipartForm(32 << 20)
+
+	var err error
+	err = storeFile("haystackFile", req)
+	if err != nil {
+		writeInteralServerError(w, fmt.Sprintf("unable to read haystack file: %s", err))
+		return
+	}
+	
+	renderer.Execute("run", ctx, req, w)			
 }
 
 func main() {
@@ -56,6 +102,7 @@ func main() {
 	fmt.Printf("Web server loading for env %s...\n", pkg.Env)
 
 	http.Handle("/", http.HandlerFunc(root))
+	http.Handle("/run", http.HandlerFunc(run))
 	
 	var addr string = "localhost:8081"
 	port := os.Getenv("PORT")
