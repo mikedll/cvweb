@@ -13,6 +13,7 @@ package main
 import (
 	"os"
 	"fmt"
+	"image/color"
 	"gocv.io/x/gocv"
 )
 
@@ -35,18 +36,49 @@ func main() {
 	sift := gocv.NewSIFT()
 	defer sift.Close()
 
-	_, needleDesc := sift.DetectAndCompute(needleImg, gocv.NewMat())
-	_, hayStackDesc := sift.DetectAndCompute(hayStackImg, gocv.NewMat())
+	needleKp, needleDesc := sift.DetectAndCompute(needleImg, gocv.NewMat())
+	hayStackKp, hayStackDesc := sift.DetectAndCompute(hayStackImg, gocv.NewMat())
 
 	flannMatcher := gocv.NewFlannBasedMatcher()
 	defer flannMatcher.Close()
 
 	dontUnderstand := 2
-	dMatch := flannMatcher.KnnMatch(hayStackDesc, needleDesc, dontUnderstand)
+	matches := flannMatcher.KnnMatch(hayStackDesc, needleDesc, dontUnderstand)
+	fmt.Printf("Here we go: %p\n", matches)
 
-	fmt.Printf("Here we go: %p\n", dMatch)
+	var good []gocv.DMatch
+	for i, m := range matches {
+		if len(m) > 1 {
+			if m[0].Distance < 0.75 * m[1].Distance {
+				fmt.Printf("Appending one for %d\n", i)
+				good = append(good, m[0])
+			}
+		}
+	}
+
+	out := gocv.NewMat()
+	defer out.Close()
+
+	// matches color
+	c1 := color.RGBA{
+		R: 0,
+		G: 255,
+		B: 0,
+		A: 0,
+	}
+
+	// point color
+	c2 := color.RGBA{
+		R: 255,
+		G: 0,
+		B: 0,
+		A: 0,
+	}
 	
-	forWindow := needleImg.Clone()
+	mask := make([]byte, 0)
+	gocv.DrawMatches(hayStackImg, hayStackKp, needleImg, needleKp, good, &out, c1, c2, mask, gocv.DrawDefault)
+	
+	forWindow := out.Clone()
 	defer forWindow.Close()
 	
 	for {
