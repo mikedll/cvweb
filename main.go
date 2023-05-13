@@ -27,8 +27,25 @@ func main() {
 	needleImg := gocv.IMRead(os.Args[2], gocv.IMReadColor)
 	defer needleImg.Close()
 
+	hayStackImg := gocv.IMRead(os.Args[1], gocv.IMReadColor)
+	defer hayStackImg.Close()
+	
 	window := gocv.NewWindow("Needle in Haystack")
 
+	sift := gocv.NewSIFT()
+	defer sift.Close()
+
+	_, needleDesc := sift.DetectAndCompute(needleImg, gocv.NewMat())
+	_, hayStackDesc := sift.DetectAndCompute(hayStackImg, gocv.NewMat())
+
+	flannMatcher := gocv.NewFlannBasedMatcher()
+	defer flannMatcher.Close()
+
+	dontUnderstand := 2
+	dMatch := flannMatcher.KnnMatch(hayStackDesc, needleDesc, dontUnderstand)
+
+	fmt.Printf("Here we go: %p\n", dMatch)
+	
 	forWindow := needleImg.Clone()
 	defer forWindow.Close()
 	
