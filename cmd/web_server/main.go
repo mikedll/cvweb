@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"io"
 	"log"
 	"pkg"
@@ -12,6 +13,7 @@ import (
 	"github.com/qor/render"
 	"html/template"
 	"strings"
+	"github.com/google/uuid"
 )
 
 var renderer *render.Render;
@@ -54,8 +56,15 @@ func root(w http.ResponseWriter, req *http.Request) {
 	renderer.Execute("index", ctx, req, w)		
 }
 
-func storeFile(param string, req *http.Request) (string, error) {
+func storeFile(prefix uuid.UUID, param string, serverName string, req *http.Request) (string, error) {
 	var err error
+
+	withUUID := "./file_storage/" + prefix.String()
+	err = os.MkdirAll(withUUID, os.ModePerm)
+	if err != nil {
+		return "", err
+	}
+	
 	var file multipart.File
 	var header *multipart.FileHeader
 	file, header, err = req.FormFile(param)
@@ -68,8 +77,8 @@ func storeFile(param string, req *http.Request) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	localFilename := "./file_storage/" + header.Filename
+	
+	localFilename := withUUID + "/" + serverName + path.Ext(header.Filename)
 	err = os.WriteFile(localFilename, fileBytes, 0644)
 	if err != nil {
 		return "", err
@@ -82,16 +91,18 @@ func run(w http.ResponseWriter, req *http.Request) {
 	ctx := defaultCtx()
 	req.ParseMultipartForm(32 << 20)
 
+	myUUID := uuid.New()
+
 	var err error
 	var haystackFilename string
 	var needleFilename string
-	haystackFilename, err = storeFile("haystackFile", req)
+	haystackFilename, err = storeFile(myUUID, "haystackFile", "haystack", req)
 	if err != nil {
 		writeInteralServerError(w, fmt.Sprintf("unable to read haystack file: %s", err))
 		return
 	}
 
-	needleFilename, err = storeFile("needleFile", req)
+	needleFilename, err = storeFile(myUUID, "needleFile", "needle", req)
 	if err != nil {
 		writeInteralServerError(w, fmt.Sprintf("unable to read needle file: %s", err))
 		return
