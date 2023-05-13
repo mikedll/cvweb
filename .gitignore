@@ -1,0 +1,8 @@
+
+.env
+
+bin/*
+log/*
+  
+.emacs.desktop
+.emacs.desktop.lock
