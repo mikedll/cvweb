@@ -14,6 +14,7 @@ import (
 	"os"
 	"fmt"
 	"math"
+	"image"
 	"image/color"
 	"gocv.io/x/gocv"
 )
@@ -23,7 +24,13 @@ const originEpsilon = 1
 const matchDistanceFactor = 0.70
 const expectedOriginRatio = 0.1
 
-func calcOrigin(good []gocv.DMatch, hayStackKps []gocv.KeyPoint, needleKps []gocv.KeyPoint, needleImg gocv.Mat) *[]float64 {
+//
+// Returns pointer to 4 element int array that describes a rectangle { x0, y0, x1, y1 }.
+// x0 and y0 comprise the rectangle's origin, drawn from the top left of some image. So x0 = 10 means
+// 10 points right of the left side of the coordinate space. y0 = 15 means 15 points below the top
+// of the coordinate space.
+//
+func calcOrigin(good []gocv.DMatch, hayStackKps []gocv.KeyPoint, needleKps []gocv.KeyPoint, needleImg gocv.Mat) *[]int {
 	// capture number of origins in the training image implied by the matches
 	var origins [][]float64
 	originCount := make(map[int]int)
@@ -62,11 +69,11 @@ func calcOrigin(good []gocv.DMatch, hayStackKps []gocv.KeyPoint, needleKps []goc
 
 	if foundOrigin != -1 {
 		fmt.Printf("There is a reasonably unique origin among %d origins\n", len(origins))
-		retOrigin := []float64{
-			origins[foundOrigin][0],
-			origins[foundOrigin][1],
-			float64(needleImg.Cols()),
-			float64(needleImg.Rows()),
+		retOrigin := []int{
+			int(math.Round(origins[foundOrigin][0])),
+			int(math.Round(origins[foundOrigin][1])),
+			needleImg.Cols(),
+			needleImg.Rows(),
 		}
 		return &retOrigin
 	} else {
@@ -154,14 +161,17 @@ func main() {
 
 	origin := calcOrigin(good, hayStackKps, needleKps, needleImg)
 	if origin != nil {
-		fmt.Printf("Origin in training image: (%.2f, %.2f, %.2f, %.2f)\n", (*origin)[0], (*origin)[1], (*origin)[2], (*origin)[3])
+		fmt.Printf("Origin in training image: (%d, %d, %d, %d)\n", (*origin)[0], (*origin)[1], (*origin)[2], (*origin)[3])
 	}		
 	
 	out := matchRender(needleImg, needleKps, hayStackImg, hayStackKps, good)
 	defer out.Close()
 
-	forWindow := out.Clone()
+	forWindow := hayStackImg.Clone()
 	defer forWindow.Close()
+
+	blue := color.RGBA{0, 0, 255, 0}
+	gocv.Rectangle(&forWindow, image.Rect((*origin)[0], (*origin)[1], (*origin)[0] + (*origin)[2], (*origin)[1] + (*origin)[3]), blue, 2)
 	
 	window := gocv.NewWindow("Needle in Haystack")
 	for {
