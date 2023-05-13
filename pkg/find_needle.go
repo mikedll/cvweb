@@ -164,3 +164,4 @@ func FindNeedle(haystackFile, needleFile string) gocv.Mat {
 
 	return forWindow
 }
+

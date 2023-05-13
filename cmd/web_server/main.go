@@ -14,6 +14,7 @@ import (
 	"html/template"
 	"strings"
 	"github.com/google/uuid"
+	"gocv.io/x/gocv"
 )
 
 var renderer *render.Render;
@@ -108,8 +109,10 @@ func run(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	forWindow := pkg.FindNeedle(haystackFilename, needleFilename)
-	defer forWindow.Close()
+	haystackWithBox := pkg.FindNeedle(haystackFilename, needleFilename)
+	defer haystackWithBox.Close()
+
+	gocv.IMWrite("./file_storage/" + myUUID.String() + "/result.png", haystackWithBox)
 	
 	renderer.Execute("run", ctx, req, w)			
 }
