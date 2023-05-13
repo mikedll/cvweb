@@ -54,26 +54,28 @@ func root(w http.ResponseWriter, req *http.Request) {
 	renderer.Execute("index", ctx, req, w)		
 }
 
-func storeFile(param string, req *http.Request) error {
+func storeFile(param string, req *http.Request) (string, error) {
 	var err error
 	var file multipart.File
 	var header *multipart.FileHeader
 	file, header, err = req.FormFile(param)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	var fileBytes []byte
 	fileBytes, err = io.ReadAll(file)
 	if err != nil {
-		return err
-	}
-	err = os.WriteFile("./file_storage/" + header.Filename, fileBytes, 0644)
-	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	localFilename := "./file_storage/" + header.Filename
+	err = os.WriteFile(localFilename, fileBytes, 0644)
+	if err != nil {
+		return "", err
+	}
+
+	return localFilename, nil
 }
 
 func run(w http.ResponseWriter, req *http.Request) {
@@ -81,11 +83,22 @@ func run(w http.ResponseWriter, req *http.Request) {
 	req.ParseMultipartForm(32 << 20)
 
 	var err error
-	err = storeFile("haystackFile", req)
+	var haystackFilename string
+	var needleFilename string
+	haystackFilename, err = storeFile("haystackFile", req)
 	if err != nil {
 		writeInteralServerError(w, fmt.Sprintf("unable to read haystack file: %s", err))
 		return
 	}
+
+	needleFilename, err = storeFile("needleFile", req)
+	if err != nil {
+		writeInteralServerError(w, fmt.Sprintf("unable to read needle file: %s", err))
+		return
+	}
+
+	forWindow := pkg.FindNeedle(haystackFilename, needleFilename)
+	defer forWindow.Close()
 	
 	renderer.Execute("run", ctx, req, w)			
 }
