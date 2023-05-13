@@ -6,7 +6,7 @@
     
 ### Example
 
-    ./bin/cli ./not_zoomed.webp ./zoomed.webp
+     ./bin/cli ./haystack.png ./needle_right_size.png 
 
 
 ### References
