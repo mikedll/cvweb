@@ -23,6 +23,60 @@ const originEpsilon = 1
 const matchDistanceFactor = 0.70
 const expectedOriginRatio = 0.1
 
+func calcOrigin(good []gocv.DMatch, hayStackKps []gocv.KeyPoint, needleKps []gocv.KeyPoint, needleImg gocv.Mat) *[]float64 {
+	// capture number of origins in the training image implied by the matches
+	var origins [][]float64
+	originCount := make(map[int]int)
+	for _, dMatch := range good {
+		needleKp := needleKps[dMatch.QueryIdx]
+		trainKp := hayStackKps[dMatch.TrainIdx]
+		trainOrigin := []float64{ trainKp.X - needleKp.X, trainKp.Y - needleKp.Y }
+
+		recognized := false
+		for _, origin := range origins {
+			if math.Abs(trainOrigin[0] - origin[0]) < originEpsilon && math.Abs(trainOrigin[1] - origin[1]) < originEpsilon {
+				recognized = true
+			}
+		}
+		
+		if !recognized {
+			origins = append(origins, []float64{ trainOrigin[0], trainOrigin[1] } )
+			originIdx := len(origins) - 1
+			if _, ok := originCount[originIdx]; !ok {
+				originCount[originIdx] = 0
+			}
+			originCount[originIdx] += 1
+		}		
+	}
+
+	// If there is at least one origin, and there aren't too many origins, pick the most popular one
+	foundOrigin := -1
+	if len(origins) >= 1 && (expectedOriginRatio * float64(len(good))) > float64(len(origins)) {
+		foundOrigin = 0
+		for originIdx, count := range originCount {
+			if count > originCount[foundOrigin] {
+				foundOrigin = originIdx
+			}
+		}
+	}
+
+	if foundOrigin != -1 {
+		fmt.Printf("There is a reasonably unique origin among %d origins\n", len(origins))
+		retOrigin := []float64{
+			origins[foundOrigin][0],
+			origins[foundOrigin][1],
+			float64(needleImg.Cols()),
+			float64(needleImg.Rows()),
+		}
+		return &retOrigin
+	} else {
+		return nil
+	}
+}
+
+//
+// Caller should call close on the returned Mat.
+// 
 func matchRender(needleImg gocv.Mat, needleKps []gocv.KeyPoint, hayStackImg gocv.Mat, hayStackKps []gocv.KeyPoint,
 	good []gocv.DMatch) gocv.Mat {
 	out := gocv.NewMat()
@@ -98,51 +152,14 @@ func main() {
 		}
 	}
 
-	// capture number of origins in the training image implied by the matches
-	var origins [][]float64
-	originCount := make(map[int]int)
-	for _, dMatch := range good {
-		needleKp := needleKps[dMatch.QueryIdx]
-		trainKp := hayStackKps[dMatch.TrainIdx]
-		trainOrigin := []float64{ trainKp.X - needleKp.X, trainKp.Y - needleKp.Y }
-
-		recognized := false
-		for _, origin := range origins {
-			if math.Abs(trainOrigin[0] - origin[0]) < originEpsilon && math.Abs(trainOrigin[1] - origin[1]) < originEpsilon {
-				recognized = true
-			}
-		}
-		
-		if !recognized {
-			origins = append(origins, []float64{ trainOrigin[0], trainOrigin[1] } )
-			originIdx := len(origins) - 1
-			if _, ok := originCount[originIdx]; !ok {
-				originCount[originIdx] = 0
-			}
-			originCount[originIdx] += 1
-		}		
-	}
-
-	// If there is at least one origin, and there aren't too many origins, pick the most popular one
-	foundOrigin := -1
-	if len(origins) >= 1 && (expectedOriginRatio * float64(len(good))) > float64(len(origins)) {
-		foundOrigin = 0
-		for originIdx, count := range originCount {
-			if count > originCount[foundOrigin] {
-				foundOrigin = originIdx
-			}
-		}
-	}
-
-	if foundOrigin != -1 {
-		fmt.Printf("There is a reasonably unique origin among %d origins\n", len(origins))
-		fmt.Printf("Origin in training image: (%.2f, %.2f, %.2f, %.2f)\n", origins[foundOrigin][0], origins[foundOrigin][1],
-			float64(needleImg.Cols()), float64(needleImg.Rows()))
-	}
-
+	origin := calcOrigin(good, hayStackKps, needleKps, needleImg)
+	if origin != nil {
+		fmt.Printf("Origin in training image: (%.2f, %.2f, %.2f, %.2f)\n", (*origin)[0], (*origin)[1], (*origin)[2], (*origin)[3])
+	}		
+	
 	out := matchRender(needleImg, needleKps, hayStackImg, hayStackKps, good)
 	defer out.Close()
-	
+
 	forWindow := out.Clone()
 	defer forWindow.Close()
 	
