@@ -78,12 +78,18 @@ func main() {
 	matches := flannMatcher.KnnMatch(needleDesc, hayStackDesc, dontUnderstand)
 	fmt.Printf("Here we go: %p, number of matches is %d\n", matches, len(matches))
 
+	// dunno what this is
 	var good []gocv.DMatch
 	for _, m := range matches {
 		if len(m) > 1 {
+			needleKp := needleKps[m[0].QueryIdx]
+			trainKp := hayStackKps[m[0].TrainIdx]
 			if m[0].Distance < 0.70 * m[1].Distance {
-				// fmt.Printf("Appending one for %d\n", i)
+				fmt.Printf("Hopefully a query key point (%.2f %.2f), train key point (%.2f, %.2f), and two distances: %.2f, %.2f, and image index of %d\n",
+					needleKp.X, needleKp.Y, trainKp.X, trainKp.Y, m[0].Distance, m[1].Distance, m[0].ImgIdx)
 				good = append(good, m[0])
+			} else {
+				fmt.Printf("Bad query key point (%.2f %.2f), and two distances: %.2f, %.2f\n", needleKp.X, needleKp.Y, m[0].Distance, m[1].Distance)
 			}
 		}
 	}
