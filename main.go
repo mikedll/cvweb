@@ -74,6 +74,7 @@ func main() {
 	defer flannMatcher.Close()
 
 	dontUnderstand := 2
+	// Needle is the query, haystack is the train
 	matches := flannMatcher.KnnMatch(needleDesc, hayStackDesc, dontUnderstand)
 	fmt.Printf("Here we go: %p, number of matches is %d\n", matches, len(matches))
 
