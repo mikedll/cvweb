@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"pkg"
+	"regexp"
 	"mime/multipart"
 	"github.com/qor/render"
 	"html/template"
@@ -88,8 +89,21 @@ func storeFile(prefix uuid.UUID, param string, serverName string, req *http.Requ
 	return localFilename, nil
 }
 
-func run(w http.ResponseWriter, req *http.Request) {
+func request(w http.ResponseWriter, req *http.Request) {
 	ctx := defaultCtx()
+
+	myRegex := regexp.MustCompile(`/requests/([a-z0-9-]+)`)
+	matches := myRegex.FindStringSubmatch(req.URL.Path)
+	if matches == nil {
+		writeInteralServerError(w, fmt.Sprintf("unable to parse request id: %s"))
+		return
+	}
+	
+	ctx["id"] = matches[1]
+	renderer.Execute("request", ctx, req, w)		
+}
+
+func makeRequest(w http.ResponseWriter, req *http.Request) {
 	req.ParseMultipartForm(32 << 20)
 
 	myUUID := uuid.New()
@@ -113,8 +127,8 @@ func run(w http.ResponseWriter, req *http.Request) {
 	defer haystackWithBox.Close()
 
 	gocv.IMWrite("./file_storage/" + myUUID.String() + "/result.png", haystackWithBox)
-	
-	renderer.Execute("run", ctx, req, w)			
+
+	http.Redirect(w, req, req.URL.Host + "/requests/" + myUUID.String(), 302)
 }
 
 func main() {
@@ -129,7 +143,8 @@ func main() {
 	fmt.Printf("Web server loading for env %s...\n", pkg.Env)
 
 	http.Handle("/", http.HandlerFunc(root))
-	http.Handle("/run", http.HandlerFunc(run))
+	http.Handle("/requests/", http.HandlerFunc(request))
+	http.Handle("/requests", http.HandlerFunc(makeRequest))
 	
 	var addr string = "localhost:8081"
 	port := os.Getenv("PORT")
