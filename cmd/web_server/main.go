@@ -95,7 +95,7 @@ func request(w http.ResponseWriter, req *http.Request) {
 	myRegex := regexp.MustCompile(`/requests/([a-z0-9-]+)`)
 	matches := myRegex.FindStringSubmatch(req.URL.Path)
 	if matches == nil {
-		writeInteralServerError(w, fmt.Sprintf("unable to parse request id: %s"))
+		writeInteralServerError(w, fmt.Sprintf("unable to parse request id"))
 		return
 	}
 	
@@ -142,10 +142,13 @@ func main() {
 
 	fmt.Printf("Web server loading for env %s...\n", pkg.Env)
 
+	fs := http.FileServer(http.Dir("./file_storage"))
+	http.Handle("/static/", http.StripPrefix("/static", fs))
+	
 	http.Handle("/", http.HandlerFunc(root))
 	http.Handle("/requests/", http.HandlerFunc(request))
 	http.Handle("/requests", http.HandlerFunc(makeRequest))
-	
+		
 	var addr string = "localhost:8081"
 	port := os.Getenv("PORT")
 
