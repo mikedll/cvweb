@@ -11,6 +11,7 @@ import (
 	"pkg"
 	"regexp"
 	"mime/multipart"
+	"net/http/httputil"
 	"html/template"
 	"strconv"
 	"bytes"
@@ -105,6 +106,7 @@ func writeError(w http.ResponseWriter, msg string, errorNum int) {
 }
 
 func writeInteralServerError(w http.ResponseWriter, msg string) {
+	fmt.Printf("Internal Server Error: %s\n", msg)
 	writeError(w, msg, http.StatusInternalServerError)
 }
 
@@ -142,7 +144,7 @@ func storeFile(prefix uuid.UUID, param string, serverName string, req *http.Requ
 	}
 	
 	var file multipart.File
-	var header *multipart.FileHeader
+	var header *multipart.FileHeader	
 	file, header, err = req.FormFile(param)
 	if err != nil {
 		return "", err
@@ -204,24 +206,33 @@ func request(w http.ResponseWriter, req *http.Request) {
 }
 
 func makeRequest(w http.ResponseWriter, req *http.Request) {
+	var err error
+	
 	req.ParseMultipartForm(32 << 20)
 
+	if pkg.Debug {
+		var dumpBytes []byte
+		dumpBytes, err = httputil.DumpRequest(req, false)
+		fmt.Printf("\nRequest in Store File:\n%s", string(dumpBytes))		
+	}
+	
 	myUUID := uuid.New()
 
-	var err error
 	var haystackFilename string
 	var needleFilename string
-	haystackFilename, err = storeFile(myUUID, "haystackFile", "haystack", req)
-	if err != nil {
-		writeInteralServerError(w, fmt.Sprintf("unable to read haystack file: %s", err))
-		return
-	}
 
 	needleFilename, err = storeFile(myUUID, "needleFile", "needle", req)
 	if err != nil {
 		writeInteralServerError(w, fmt.Sprintf("unable to read needle file: %s", err))
 		return
 	}
+	
+	haystackFilename, err = storeFile(myUUID, "haystackFile", "haystack", req)
+	if err != nil {
+		writeInteralServerError(w, fmt.Sprintf("unable to read haystack file: %s", err))
+		return
+	}
+
 
 	findResult := pkg.FindNeedle(haystackFilename, needleFilename)
 	defer findResult.Mat.Close()
