@@ -14,18 +14,18 @@ func main() {
 		return
 	}
 
-	forWindow := pkg.FindNeedle(os.Args[1], os.Args[2])	
-	defer forWindow.Close()
+	findResult := pkg.FindNeedle(os.Args[1], os.Args[2])	
+	defer findResult.Mat.Close()
 	
 	window := gocv.NewWindow("Needle in Haystack")
 	for {
-		if forWindow.Empty() {
+		if findResult.Mat.Empty() {
 			fmt.Printf("Empty mat, exiting\n")
 			break
 		}
 
-		window.ResizeWindow(forWindow.Cols(), forWindow.Rows())
-		window.IMShow(forWindow)
+		window.ResizeWindow(findResult.Mat.Cols(), findResult.Mat.Rows())
+		window.IMShow(findResult.Mat)
 		window.WaitKey(1)
 	}
 }

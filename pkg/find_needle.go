@@ -12,6 +12,11 @@ const originEpsilon = 1
 const matchDistanceFactor = 0.70
 const expectedOriginRatio = 0.1
 
+type FindResult struct {
+	Found bool `json:"found"`
+	Mat gocv.Mat
+}
+
 //
 // Returns pointer to 4 element int array that describes a rectangle { x0, y0, x1, y1 }.
 // x0 and y0 comprise the rectangle's origin, drawn from the top left of some image. So x0 = 10 means
@@ -101,11 +106,11 @@ func matchRender(needleImg gocv.Mat, needleKps []gocv.KeyPoint, hayStackImg gocv
 }
 
 //
-// Returns a gocv.Mat that caller must call Close on.
+// Returns a FindResult. The caller must call Close on the result.Mat.
 //
 // The Mat is an image of the haystack image, with the needle, if found, drawn on top of it.
 //
-func FindNeedle(haystackFile, needleFile string) gocv.Mat {	
+func FindNeedle(haystackFile, needleFile string) FindResult {	
 	hayStackImg := gocv.IMRead(haystackFile, gocv.IMReadColor)
 	defer hayStackImg.Close()
 
@@ -162,6 +167,9 @@ func FindNeedle(haystackFile, needleFile string) gocv.Mat {
 		gocv.Rectangle(&forWindow, image.Rect((*origin)[0], (*origin)[1], (*origin)[0] + (*origin)[2], (*origin)[1] + (*origin)[3]), blue, 2)		
 	}
 
-	return forWindow
+	return FindResult{
+		Found: origin != nil,
+		Mat: forWindow,
+	}
 }
 

@@ -11,11 +11,13 @@ import (
 	"pkg"
 	"regexp"
 	"mime/multipart"
-	"github.com/qor/render"
 	"html/template"
+	"strconv"
 	"strings"
+	"encoding/json"
+	"github.com/qor/render"
 	"github.com/google/uuid"
-	"gocv.io/x/gocv"
+	"gocv.io/x/gocv"	
 )
 
 var renderer *render.Render;
@@ -98,8 +100,34 @@ func request(w http.ResponseWriter, req *http.Request) {
 		writeInteralServerError(w, fmt.Sprintf("unable to parse request id"))
 		return
 	}
+
+	uuid := matches[1]
+	ctx["id"] = uuid
+
+	var file *os.File
+	var err error
+	file, err = os.Open("./file_storage/" + uuid + "/data.json")
+	if err != nil {
+		writeInteralServerError(w, fmt.Sprintf("Error when reading data json file: %s", err))
+		return
+	}
+
+	var dataJsonBytes []byte
+	dataJsonBytes, err = io.ReadAll(file)
+	if err != nil {
+		writeInteralServerError(w, fmt.Sprintf("Error when reading data file: %s", err))
+		return
+	}
+
+	findResult := pkg.FindResult{}
+	err = json.Unmarshal(dataJsonBytes, &findResult)
+	if err != nil {
+		writeInteralServerError(w, fmt.Sprintf("Error when unmarshaling data json: %s", err))
+		return
+	}
+
+	ctx["found"] = strconv.FormatBool(findResult.Found)
 	
-	ctx["id"] = matches[1]
 	renderer.Execute("request", ctx, req, w)		
 }
 
@@ -123,10 +151,22 @@ func makeRequest(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	haystackWithBox := pkg.FindNeedle(haystackFilename, needleFilename)
-	defer haystackWithBox.Close()
+	findResult := pkg.FindNeedle(haystackFilename, needleFilename)
+	defer findResult.Mat.Close()
 
-	gocv.IMWrite("./file_storage/" + myUUID.String() + "/result.png", haystackWithBox)
+	gocv.IMWrite("./file_storage/" + myUUID.String() + "/result.png", findResult.Mat)
+
+	var dataFileBytes []byte
+	dataFileBytes, err = json.Marshal(findResult)
+	if err != nil {
+		writeInteralServerError(w, fmt.Sprintf("Error when marshalling data json: %s", err))
+		return
+	}
+
+	os.WriteFile("./file_storage/" + myUUID.String() + "/data.json", dataFileBytes, 0644)
+	if pkg.Debug {
+		fmt.Printf("Wrote data file for request %s\n", myUUID.String())
+	}
 
 	http.Redirect(w, req, req.URL.Host + "/requests/" + myUUID.String(), 302)
 }
