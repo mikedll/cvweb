@@ -23,13 +23,13 @@ type FindResult struct {
 // 10 points right of the left side of the coordinate space. y0 = 15 means 15 points below the top
 // of the coordinate space.
 //
-func calcOrigin(good []gocv.DMatch, hayStackKps []gocv.KeyPoint, needleKps []gocv.KeyPoint, needleImg gocv.Mat) *[]int {
+func calcOrigin(good []gocv.DMatch, haystackKps []gocv.KeyPoint, needleKps []gocv.KeyPoint, needleImg gocv.Mat) *[]int {
 	// capture number of origins in the training image implied by the matches
 	var origins [][]float64
 	originCount := make(map[int]int)
 	for _, dMatch := range good {
 		needleKp := needleKps[dMatch.QueryIdx]
-		trainKp := hayStackKps[dMatch.TrainIdx]
+		trainKp := haystackKps[dMatch.TrainIdx]
 		trainOrigin := []float64{ trainKp.X - needleKp.X, trainKp.Y - needleKp.Y }
 
 		recognized := false
@@ -81,7 +81,7 @@ func calcOrigin(good []gocv.DMatch, hayStackKps []gocv.KeyPoint, needleKps []goc
 // 
 // Caller should call Close on it.
 // 
-func matchRender(needleImg gocv.Mat, needleKps []gocv.KeyPoint, hayStackImg gocv.Mat, hayStackKps []gocv.KeyPoint,
+func matchRender(needleImg gocv.Mat, needleKps []gocv.KeyPoint, hayStackImg gocv.Mat, haystackKps []gocv.KeyPoint,
 	good []gocv.DMatch) gocv.Mat {
 	out := gocv.NewMat()
 
@@ -102,7 +102,7 @@ func matchRender(needleImg gocv.Mat, needleKps []gocv.KeyPoint, hayStackImg gocv
 	}
 	
 	mask := make([]byte, 0)
-	gocv.DrawMatches(needleImg, needleKps, hayStackImg, hayStackKps, good, &out, c1, c2, mask, gocv.DrawDefault)
+	gocv.DrawMatches(needleImg, needleKps, hayStackImg, haystackKps, good, &out, c1, c2, mask, gocv.DrawDefault)
 
 	return out
 }
@@ -122,8 +122,15 @@ func FindNeedle(haystackFile, needleFile string) FindResult {
 	sift := gocv.NewSIFT()
 	defer sift.Close()
 
-	needleKps, needleDesc := sift.DetectAndCompute(needleImg, gocv.NewMat())
-	hayStackKps, hayStackDesc := sift.DetectAndCompute(hayStackImg, gocv.NewMat())
+	needleMask := gocv.NewMat()
+	defer needleMask.Close()
+	needleKps, needleDesc := sift.DetectAndCompute(needleImg, needleMask)
+	defer needleDesc.Close()
+
+	haystackMask := gocv.NewMat()
+	defer haystackMask.Close()
+	haystackKps, haystackDesc := sift.DetectAndCompute(hayStackImg, haystackMask)
+	defer haystackDesc.Close()
 
 	if Debug {
 		fmt.Printf("Haystack cols=%d, rows=%d\n", hayStackImg.Cols(), hayStackImg.Rows())
@@ -138,7 +145,7 @@ func FindNeedle(haystackFile, needleFile string) FindResult {
 
 	dontUnderstand := 2
 	// Needle is the query, haystack is the train
-	matches := flannMatcher.KnnMatch(needleDesc, hayStackDesc, dontUnderstand)
+	matches := flannMatcher.KnnMatch(needleDesc, haystackDesc, dontUnderstand)
 	if Debug {
 		fmt.Printf("Here we go: %p, number of matches is %d\n", matches, len(matches))
 	}
@@ -148,7 +155,7 @@ func FindNeedle(haystackFile, needleFile string) FindResult {
 	for _, m := range matches {
 		if len(m) > 1 {
 			needleKp := needleKps[m[0].QueryIdx]
-			trainKp := hayStackKps[m[0].TrainIdx]
+			trainKp := haystackKps[m[0].TrainIdx]
 			if m[0].Distance < matchDistanceFactor * m[1].Distance {
 				if Debug {
 					fmt.Printf("Hopefully a query key point (%.2f %.2f), train key point (%.2f, %.2f), and two distances: %.2f, %.2f, and image index of %d\n",
@@ -164,12 +171,12 @@ func FindNeedle(haystackFile, needleFile string) FindResult {
 	}
 
 	// This isn't being used at the moment
-	out := matchRender(needleImg, needleKps, hayStackImg, hayStackKps, good)
+	out := matchRender(needleImg, needleKps, hayStackImg, haystackKps, good)
 	defer out.Close()
 
 	forWindow := hayStackImg.Clone()	
 
-	origin := calcOrigin(good, hayStackKps, needleKps, needleImg)
+	origin := calcOrigin(good, haystackKps, needleKps, needleImg)
 	if origin != nil {
 		if Debug {
 			fmt.Printf("Origin in training image: (%d, %d, %d, %d)\n", (*origin)[0], (*origin)[1], (*origin)[2], (*origin)[3])
