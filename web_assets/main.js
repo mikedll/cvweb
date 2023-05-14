@@ -11,6 +11,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     const results = JSON.parse(window.results);
+
+    if(results.length === 0) {
+      const p = document.createElement('p');
+      p.appendChild(document.createTextNode('0 results found.'));
+      pastResults.closest('div').appendChild(p);
+      return;
+    }
+    
     // console.log(`found ${results.length} results`);
     results.forEach((result) => {
       console.log("result: ", result.uuid);
