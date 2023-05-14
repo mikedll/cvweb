@@ -4,20 +4,30 @@
   in a haystack.
 </p>
 
-<form class="row g-3" action="/requests" method="POST" enctype="multipart/form-data">
+<div class="mb-5">
+  <form class="row g-3" action="/requests" method="POST" enctype="multipart/form-data">
 
-  <div class="col-6">
-    Haystack:
-    <input type="file" name="haystackFile"/>
-  </div>
+    <div class="col-6">
+      Haystack:
+      <input type="file" name="haystackFile"/>
+    </div>
 
-  <div class="col-6">
-    Needle:
-    <input type="file" name="needleFile"/>
-  </div>
+    <div class="col-6">
+      Needle:
+      <input type="file" name="needleFile"/>
+    </div>
 
-  <div class="col-6">
-    <input type="submit" class="btn btn-primary" value="Submit">
-  </div>
+    <div class="mb-5">
+      <div class="col-6">
+        <input type="submit" class="btn btn-primary" value="Submit">
+      </div>
+    </div>
+  </form>
   
-</form>
+</div>
+
+<div class="past-results">
+  <h3>Past Results</h3>
+  <ul>
+  </ul>
+</div>

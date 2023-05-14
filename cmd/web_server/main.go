@@ -13,7 +13,10 @@ import (
 	"mime/multipart"
 	"html/template"
 	"strconv"
+	"bytes"
 	"strings"
+	"errors"
+	"os/exec"
 	"encoding/json"
 	"github.com/qor/render"
 	"github.com/google/uuid"
@@ -21,6 +24,11 @@ import (
 )
 
 var renderer *render.Render;
+var UUIDRegex = regexp.MustCompile(`(\w{8}-\w{4}-\w{4}-\w{4}-\w{12})`)
+
+type Result struct {
+	UUID string   `json:"uuid"`
+}
 
 func defaultCtx() map[string]interface{} {
 	ctx := make(map[string]interface{})
@@ -47,6 +55,51 @@ func defaultCtx() map[string]interface{} {
 	return ctx
 }
 
+func getRecentResults() (*[]Result, error) {
+	var buf bytes.Buffer
+	cmd := exec.Command("find", "./file_storage", "-mtime", "-2", "-iname", "*.json")
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+
+	var err error
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
+	
+	err = cmd.Wait()
+	if err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			return nil, errors.New(fmt.Sprintf("Recent requests exit code: %d", exiterr.ExitCode()))
+		} else {
+			return nil, err
+		}
+	}
+	
+	var results []Result
+	var recentOutput []byte
+	recentOutput, err = io.ReadAll(&buf)
+	if err != nil {
+		return nil, err
+	}
+	
+	lines := strings.Split(string(recentOutput), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		
+		matches := UUIDRegex.FindStringSubmatch(line)
+		if matches == nil {
+			log.Fatalf("Error when parsing line of recent requests, line was: %s", line)
+		}
+
+		results = append(results, Result{UUID: matches[1]})
+	}
+
+	return &results, nil
+}
+
 func writeError(w http.ResponseWriter, msg string, errorNum int) {
 	http.Error(w, msg, errorNum)
 }
@@ -57,6 +110,25 @@ func writeInteralServerError(w http.ResponseWriter, msg string) {
 
 func root(w http.ResponseWriter, req *http.Request) {
 	ctx := defaultCtx()
+
+	var err error
+	
+	var results *[]Result
+	results, err = getRecentResults()
+	if err != nil {
+		writeInteralServerError(w, fmt.Sprintf("Error when retrieving recent requests: %s", err))
+		return
+	}
+	
+	var resultBytes []byte
+	resultBytes, err = json.Marshal(&results)
+	if err != nil {
+		writeInteralServerError(w, fmt.Sprintf("Error when marshalling result: %s", err))
+		return
+	}
+
+	ctx["results"] = string(resultBytes)
+	
 	renderer.Execute("index", ctx, req, w)		
 }
 
@@ -184,6 +256,9 @@ func main() {
 
 	fs := http.FileServer(http.Dir("./file_storage"))
 	http.Handle("/static/", http.StripPrefix("/static", fs))
+
+	assetsFs := http.FileServer(http.Dir("./web_assets"))
+	http.Handle("/assets/", http.StripPrefix("/assets", assetsFs))
 	
 	http.Handle("/", http.HandlerFunc(root))
 	http.Handle("/requests/", http.HandlerFunc(request))
