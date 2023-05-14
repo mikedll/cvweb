@@ -61,7 +61,9 @@ func calcOrigin(good []gocv.DMatch, hayStackKps []gocv.KeyPoint, needleKps []goc
 	}
 
 	if foundOrigin != -1 {
-		fmt.Printf("There is a reasonably unique origin among %d origins\n", len(origins))
+		if Debug {
+			fmt.Printf("There is a reasonably unique origin among %d origins\n", len(origins))
+		}
 		retOrigin := []int{
 			int(math.Round(origins[foundOrigin][0])),
 			int(math.Round(origins[foundOrigin][1])),
@@ -123,20 +125,23 @@ func FindNeedle(haystackFile, needleFile string) FindResult {
 	needleKps, needleDesc := sift.DetectAndCompute(needleImg, gocv.NewMat())
 	hayStackKps, hayStackDesc := sift.DetectAndCompute(hayStackImg, gocv.NewMat())
 
-	fmt.Printf("Haystack cols=%d, rows=%d\n", hayStackImg.Cols(), hayStackImg.Rows())
-
-	fmt.Printf("Needle cols=%d, rows=%d\n", needleImg.Cols(), needleImg.Rows())
-	for _, keyPoint := range needleKps {
-		fmt.Printf("Needle key point at (%.2f, %.2f)\n", keyPoint.X, keyPoint.Y)
+	if Debug {
+		fmt.Printf("Haystack cols=%d, rows=%d\n", hayStackImg.Cols(), hayStackImg.Rows())
+		fmt.Printf("Needle cols=%d, rows=%d\n", needleImg.Cols(), needleImg.Rows())
+		for _, keyPoint := range needleKps {
+			fmt.Printf("Needle key point at (%.2f, %.2f)\n", keyPoint.X, keyPoint.Y)
+		}
 	}
-	
+		
 	flannMatcher := gocv.NewFlannBasedMatcher()
 	defer flannMatcher.Close()
 
 	dontUnderstand := 2
 	// Needle is the query, haystack is the train
 	matches := flannMatcher.KnnMatch(needleDesc, hayStackDesc, dontUnderstand)
-	fmt.Printf("Here we go: %p, number of matches is %d\n", matches, len(matches))
+	if Debug {
+		fmt.Printf("Here we go: %p, number of matches is %d\n", matches, len(matches))
+	}
 
 	// dunno what this loop is doing. I know without it, we get too many bad matches.
 	var good []gocv.DMatch
@@ -145,11 +150,15 @@ func FindNeedle(haystackFile, needleFile string) FindResult {
 			needleKp := needleKps[m[0].QueryIdx]
 			trainKp := hayStackKps[m[0].TrainIdx]
 			if m[0].Distance < matchDistanceFactor * m[1].Distance {
-				fmt.Printf("Hopefully a query key point (%.2f %.2f), train key point (%.2f, %.2f), and two distances: %.2f, %.2f, and image index of %d\n",
-					needleKp.X, needleKp.Y, trainKp.X, trainKp.Y, m[0].Distance, m[1].Distance, m[0].ImgIdx)			
+				if Debug {
+					fmt.Printf("Hopefully a query key point (%.2f %.2f), train key point (%.2f, %.2f), and two distances: %.2f, %.2f, and image index of %d\n",
+						needleKp.X, needleKp.Y, trainKp.X, trainKp.Y, m[0].Distance, m[1].Distance, m[0].ImgIdx)
+				}
 				good = append(good, m[0])
 			} else {
-				fmt.Printf("Bad query key point (%.2f %.2f), and two distances: %.2f, %.2f\n", needleKp.X, needleKp.Y, m[0].Distance, m[1].Distance)
+				if Debug {
+					fmt.Printf("Bad query key point (%.2f %.2f), and two distances: %.2f, %.2f\n", needleKp.X, needleKp.Y, m[0].Distance, m[1].Distance)
+				}
 			}
 		}
 	}
@@ -162,7 +171,9 @@ func FindNeedle(haystackFile, needleFile string) FindResult {
 
 	origin := calcOrigin(good, hayStackKps, needleKps, needleImg)
 	if origin != nil {
-		fmt.Printf("Origin in training image: (%d, %d, %d, %d)\n", (*origin)[0], (*origin)[1], (*origin)[2], (*origin)[3])
+		if Debug {
+			fmt.Printf("Origin in training image: (%d, %d, %d, %d)\n", (*origin)[0], (*origin)[1], (*origin)[2], (*origin)[3])
+		}
 		blue := color.RGBA{0, 0, 255, 0}
 		gocv.Rectangle(&forWindow, image.Rect((*origin)[0], (*origin)[1], (*origin)[0] + (*origin)[2], (*origin)[1] + (*origin)[3]), blue, 2)		
 	}

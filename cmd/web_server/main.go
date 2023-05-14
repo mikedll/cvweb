@@ -247,9 +247,7 @@ func makeRequest(w http.ResponseWriter, req *http.Request) {
 	}
 
 	os.WriteFile("./file_storage/" + myUUID.String() + "/data.json", dataFileBytes, 0644)
-	if pkg.Debug {
-		fmt.Printf("Wrote data file for request %s\n", myUUID.String())
-	}
+	fmt.Printf("Wrote data file for request %s\n", myUUID.String())
 
 	http.Redirect(w, req, req.URL.Host + "/requests/" + myUUID.String(), 302)
 }
