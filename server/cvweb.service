@@ -1,0 +1,19 @@
+
+# Place in /etc/systemd/system
+# Maybe it should be in /lib/systemd on Ubuntu but we can worry about that some other time.
+  
+[Unit]
+Description=GoCV Find Needle
+After=network.target
+StartLimitIntervalSec=30
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=3
+User=mrmike
+WorkingDirectory=/home/mrmike/cvweb
+ExecStart=/home/mrmike/cvweb/bin/web_server
+
+[Install]
+WantedBy=multi-user.target
