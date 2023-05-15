@@ -1,5 +1,7 @@
 
-all: bin/cli bin/web_server bin/debug_web_server
+all: bin/cli bin/web_server
+
+debug: bin/debug_web_server
 
 bin/cli: $(wildcard pkg/*.go) cmd/cli/main.go
 	go build -o bin/cli ./cmd/cli

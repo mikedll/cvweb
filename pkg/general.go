@@ -11,7 +11,7 @@ import (
 var Debug = false
 var Env string
 var timeZone *time.Location
-const timeLayout = "Mon Jan 2, 2006 at 3:04pm MST"
+const TimeLayout = "Mon Jan 2, 2006 at 3:04pm MST"
 
 func fileExists(filename string) bool {
     info, err := os.Stat(filename)

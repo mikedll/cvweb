@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   console.log(`main.js executing`);
   
-  const pastResults = document.querySelector('.past-results ul');
+  const pastResults = document.querySelector('.past-results table');
   if(pastResults !== null) {
     if(window.results === '') {
       pastResults.appendChild(document.createTextNote("No past results."));
@@ -20,14 +20,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     // console.log(`found ${results.length} results`);
+    const tbody = pastResults.querySelector('tbody');
     results.forEach((result) => {
-      console.log("result: ", result.uuid);
-      const li = document.createElement('li');
+      console.log("result: ", result.uuid, result.createdAt);
+      const tr = document.createElement('tr');
+      const uuidCell = document.createElement('td');
       const a = document.createElement('a');
       a.appendChild(document.createTextNode(result.uuid));
       a.href = `/requests/${result.uuid}`;
-      li.appendChild(a);
-      pastResults.appendChild(li);
+      uuidCell.appendChild(a)
+
+      const createdAtCell = document.createElement('td');
+      createdAtCell.appendChild(document.createTextNode(result.createdAt));
+
+      tr.appendChild(uuidCell);
+      tr.appendChild(createdAtCell);
+      
+      tbody.appendChild(tr);
     });    
   } else {
     // console.log(`no past results node found`);    

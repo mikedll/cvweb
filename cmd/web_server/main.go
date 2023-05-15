@@ -13,12 +13,14 @@ import (
 	"mime/multipart"
 	"net/http/httputil"
 	"html/template"
+	"sort"
 	"strconv"
 	"bytes"
 	"strings"
 	"errors"
 	"os/exec"
 	"encoding/json"
+	"time"
 	"github.com/qor/render"
 	"github.com/google/uuid"
 	"gocv.io/x/gocv"	
@@ -28,7 +30,9 @@ var renderer *render.Render;
 var UUIDRegex = regexp.MustCompile(`(\w{8}-\w{4}-\w{4}-\w{4}-\w{12})`)
 
 type Result struct {
-	UUID string   `json:"uuid"`
+	UUID        string   `json:"uuid"`
+	PrettyTime  string   `json:"createdAt"`
+	ModTime  time.Time
 }
 
 func defaultCtx() map[string]interface{} {
@@ -58,7 +62,7 @@ func defaultCtx() map[string]interface{} {
 
 func getRecentResults() (*[]Result, error) {
 	var buf bytes.Buffer
-	cmd := exec.Command("find", "./file_storage", "-mtime", "-2", "-iname", "*.json")
+	cmd := exec.Command("find", "./file_storage", "-mtime", "-32", "-iname", "*.json")
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
 
@@ -95,8 +99,25 @@ func getRecentResults() (*[]Result, error) {
 			log.Fatalf("Error when parsing line of recent requests, line was: %s", line)
 		}
 
-		results = append(results, Result{UUID: matches[1]})
+		var fileInfo os.FileInfo
+		fileInfo, err = os.Stat("./file_storage/" + matches[1] + "/data.json")
+		if err != nil {
+			log.Fatalf("Error when getting file stat of data.json, UUID was %s", matches[1])
+		}
+
+		results = append(results, Result{UUID: matches[1], ModTime: fileInfo.ModTime()})
 	}
+
+	for i := range results {
+		result := &results[i]
+
+		result.PrettyTime = result.ModTime.Format(pkg.TimeLayout)
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].ModTime.After(results[j].ModTime)
+	})
+	
 
 	return &results, nil
 }
