@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"image"
 	"image/color"
@@ -10,7 +11,7 @@ import (
 
 const originEpsilon = 1
 const matchDistanceFactor = 0.70
-const expectedOriginRatio = 0.1
+const expectedOriginRatio = 0.2
 
 type FindResult struct {
 	Found bool `json:"found"`
@@ -32,21 +33,28 @@ func calcOrigin(good []gocv.DMatch, haystackKps []gocv.KeyPoint, needleKps []goc
 		trainKp := haystackKps[dMatch.TrainIdx]
 		trainOrigin := []float64{ trainKp.X - needleKp.X, trainKp.Y - needleKp.Y }
 
+		originIdx := -1
 		recognized := false
-		for _, origin := range origins {
+		for i, origin := range origins {
 			if math.Abs(trainOrigin[0] - origin[0]) < originEpsilon && math.Abs(trainOrigin[1] - origin[1]) < originEpsilon {
 				recognized = true
+				originIdx = i
 			}
 		}
 		
 		if !recognized {
 			origins = append(origins, []float64{ trainOrigin[0], trainOrigin[1] } )
-			originIdx := len(origins) - 1
+			originIdx = len(origins) - 1
 			if _, ok := originCount[originIdx]; !ok {
 				originCount[originIdx] = 0
 			}
-			originCount[originIdx] += 1
-		}		
+		}
+
+		if originIdx == -1 {
+			log.Fatalf("logic error: bad originIdx\n")
+		}
+
+		originCount[originIdx] += 1		
 	}
 
 	// If there is at least one origin, and there aren't too many origins, pick the most popular one
@@ -54,6 +62,9 @@ func calcOrigin(good []gocv.DMatch, haystackKps []gocv.KeyPoint, needleKps []goc
 	if len(origins) >= 1 && (expectedOriginRatio * float64(len(good))) > float64(len(origins)) {
 		foundOrigin = 0
 		for originIdx, count := range originCount {
+			if Debug {
+				fmt.Printf("idx=%d, count=%d\n", originIdx, count)
+			}
 			if count > originCount[foundOrigin] {
 				foundOrigin = originIdx
 			}
